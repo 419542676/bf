@@ -387,6 +387,7 @@ bool SimplifyCondBr(CondBrInstruction *instr) {
     BasicBlock *target = taken ? instr->trueLabel : instr->falseLabel;
     BasicBlock *drop = taken ? instr->falseLabel : instr->trueLabel;
     UnlinkEdge(instr->block, drop);
+    UnlinkBlock(instr->block, drop);
     auto br = new BrInstruction(target);
     br->block = instr->block;
     ReplaceInstr(instr, br);
