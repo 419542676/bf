@@ -15,6 +15,8 @@ public:
 
     void Constlize();
 
+    void ScalarOpt();
+
     void debug();
 };
 

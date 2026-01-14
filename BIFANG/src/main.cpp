@@ -68,10 +68,10 @@ int main(int argc, const char* argv[]) {
     visitor->visit(tree);
     //中端
     GlobalUnit *gu = visitor->globalUnit;
-//    if(is_opt) {
-//        IROptimizer *opt = new IROptimizer(gu);
-//        opt->Optimize();
-//    }
+    if(is_opt) {
+        IROptimizer *opt = new IROptimizer(gu);
+        opt->Optimize();
+    }
     auto builder = make_unique<AsmBuilder>();
     auto mUnit = make_unique<MachineUnit>();
     std::string output_ll_file = std::string(TESTCASE_PATH) + "/"s + argv[1] +"_ir.ll"s;
