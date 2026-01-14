@@ -15,6 +15,7 @@ void IROptimizer::Optimize() {
     BuildCFG();
     Constlize();
     ScalarOpt();
+    BuildCFG();
 
     //globalUnit->Emit(std::cerr);
     DomTreePass* domTreePass = new DomTreePass(this->globalUnit);
@@ -212,6 +213,43 @@ void ReplaceWithConst(Instruction *instr, ValueRef *replacement) {
     DeleteInstruction(instr);
 }
 
+void UnlinkEdge(BasicBlock *pred, BasicBlock *succ) {
+    for (auto instr : succ->local_instr) {
+        auto phi = dynamic_cast<PhiInstruction*>(instr);
+        if (phi == nullptr) {
+            break;
+        }
+        auto it = phi->mp.find(pred);
+        if (it == phi->mp.end()) {
+            continue;
+        }
+        auto *incoming = it->second;
+        phi->use_list.erase(incoming);
+        auto &v = incoming->use;
+        auto use_it = std::find(v.begin(), v.end(), phi);
+        if (use_it != v.end()) {
+            v.erase(use_it);
+        }
+        phi->use_list.erase(pred);
+        phi->mp.erase(it);
+        --phi->branch_cnt;
+    }
+    auto &succ_list = pred->succ;
+    for (auto it = succ_list.begin(); it != succ_list.end(); ++it) {
+        if (*it == succ) {
+            succ_list.erase(it);
+            break;
+        }
+    }
+    auto &pred_list = succ->pred;
+    for (auto it = pred_list.begin(); it != pred_list.end(); ++it) {
+        if (*it == pred) {
+            pred_list.erase(it);
+            break;
+        }
+    }
+}
+
 bool SimplifyBinary(BinaryInstruction *instr) {
     if (IsIntConst(instr->src1) && IsIntConst(instr->src2)) {
         ValueRef *folded = FoldBinary(instr);
@@ -348,6 +386,7 @@ bool SimplifyCondBr(CondBrInstruction *instr) {
     bool taken = GetConstAsBool(instr->condition);
     BasicBlock *target = taken ? instr->trueLabel : instr->falseLabel;
     BasicBlock *drop = taken ? instr->falseLabel : instr->trueLabel;
+    UnlinkEdge(instr->block, drop);
     UnlinkBlock(instr->block, drop);
     auto br = new BrInstruction(target);
     br->block = instr->block;
